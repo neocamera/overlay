@@ -1,0 +1,675 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="theme-color" content="#000000">
+<meta name="color-scheme" content="dark">
+<title>Camera</title>
+<style>
+:root{
+  --ios-yellow:#ffd60a;
+  --ios-red:#ff3b30;
+  --chrome:#000;
+  --glass:rgba(255,255,255,.18);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0;background:#000;overflow:hidden;overscroll-behavior:none}
+body{
+  font:500 14px/1.2 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  color:#fff;
+  user-select:none;-webkit-user-select:none;
+  -webkit-touch-callout:none;
+}
+button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:pointer}
+button:focus-visible{outline:2px solid var(--ios-yellow);outline-offset:3px;border-radius:6px}
+
+#app{
+  position:relative;height:100%;display:flex;flex-direction:column;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+/* ---------- top chrome ---------- */
+#topBar{flex:0 0 auto;height:46px;display:flex;align-items:center;justify-content:center}
+#recPill{
+  display:none;align-items:center;gap:7px;
+  background:rgba(0,0,0,.55);border-radius:16px;padding:5px 12px;
+  font-size:15px;font-variant-numeric:tabular-nums;letter-spacing:.02em;
+}
+#recDot{width:9px;height:9px;border-radius:50%;background:var(--ios-red)}
+body[data-rec="1"] #recPill{display:flex}
+body[data-rec="1"] #recDot{animation:blink 1s steps(1,end) infinite}
+@keyframes blink{50%{opacity:.15}}
+
+/* ---------- viewfinder ---------- */
+#stage{
+  flex:1 1 auto;position:relative;overflow:hidden;background:#000;
+  display:flex;align-items:center;justify-content:center;
+}
+#preview{width:100%;height:100%;object-fit:contain;display:block;background:#000}
+#preview.mirror{transform:scaleX(-1)}
+#preview.off{display:none}
+
+#audioView{display:none;flex-direction:column;align-items:center;gap:26px;color:#8e8e93}
+body[data-source="audio"] #audioView{display:flex}
+#audioView svg{width:54px;height:54px;fill:#8e8e93}
+#bars{display:flex;align-items:flex-end;gap:6px;height:64px}
+#bars i{width:6px;height:6px;border-radius:3px;background:var(--ios-red);transition:height .08s linear}
+#audioView p{margin:0;font-size:13px;letter-spacing:.02em}
+
+/* ---------- guide overlay ---------- */
+#overlayLayer{position:absolute;left:0;top:0;display:none;pointer-events:none}
+body[data-overlay="1"] #overlayLayer{display:block}
+#overlayImg{width:100%;height:100%;object-fit:contain;display:block}
+
+#guideBar{
+  flex:0 0 auto;display:none;align-items:center;gap:12px;
+  padding:2px 22px 10px;background:var(--chrome);
+}
+body[data-overlay="1"] #guideBar{display:flex}
+#guideBar span.lbl{font-size:13px;color:#8e8e93}
+#pct{width:46px;text-align:right;font-size:13px;font-variant-numeric:tabular-nums;color:#fff}
+#opacity{
+  -webkit-appearance:none;appearance:none;flex:1 1 auto;height:4px;border-radius:2px;
+  background:rgba(255,255,255,.28);margin:0;
+}
+#opacity::-webkit-slider-thumb{
+  -webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:#fff;
+  box-shadow:0 1px 4px rgba(0,0,0,.6);
+}
+#opacity::-moz-range-thumb{
+  width:22px;height:22px;border:0;border-radius:50%;background:#fff;
+  box-shadow:0 1px 4px rgba(0,0,0,.6);
+}
+#opacity:focus-visible{outline:2px solid var(--ios-yellow);outline-offset:6px}
+
+#shutterFx{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none}
+#shutterFx.go{animation:shut .24s ease-out}
+@keyframes shut{0%{opacity:1}100%{opacity:0}}
+
+#toast{
+  position:absolute;left:50%;bottom:18px;transform:translate(-50%,8px);
+  background:rgba(0,0,0,.6);border-radius:16px;padding:7px 14px;
+  font-size:13px;white-space:nowrap;max-width:88%;overflow:hidden;text-overflow:ellipsis;
+  opacity:0;transition:opacity .2s ease,transform .2s ease;pointer-events:none;
+}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+
+/* ---------- bottom chrome ---------- */
+#bottomBar{flex:0 0 auto;background:var(--chrome);padding-bottom:6px}
+#modes{display:flex;align-items:center;justify-content:center;gap:30px;height:38px}
+.mode{
+  font-size:12px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
+  color:rgba(255,255,255,.82);padding:8px 2px;transition:color .15s ease;
+}
+.mode.active{color:var(--ios-yellow)}
+.mode[disabled]{color:rgba(255,255,255,.28)}
+#controls{height:112px;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:0 24px}
+
+#guideBtn{
+  width:52px;height:52px;border-radius:7px;justify-self:start;
+  background:#1c1c1e;display:grid;place-items:center;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.22);
+}
+#guideBtn[disabled]{opacity:.45}
+#guideBtn svg{width:26px;height:26px;stroke:#aeaeb2;stroke-width:2;stroke-linecap:round;fill:none}
+#guideBtn .ic-close{display:none}
+body[data-overlay="1"] #guideBtn .ic-add{display:none}
+body[data-overlay="1"] #guideBtn .ic-close{display:block}
+
+#shutter{
+  width:74px;height:74px;border-radius:50%;justify-self:center;
+  box-shadow:inset 0 0 0 3px #fff;display:grid;place-items:center;
+  transition:transform .1s ease;
+}
+#shutter:active{transform:scale(.94)}
+#shutter[disabled]{opacity:.4}
+#core{width:60px;height:60px;border-radius:50%;background:#fff;transition:width .18s ease,height .18s ease,border-radius .18s ease,background .18s ease}
+body[data-mode="video"] #core{background:var(--ios-red)}
+body[data-rec="1"] #core{width:30px;height:30px;border-radius:8px;background:var(--ios-red)}
+
+#flip{
+  width:46px;height:46px;border-radius:50%;justify-self:end;
+  background:var(--glass);display:grid;place-items:center;
+}
+#flip svg{width:24px;height:24px;fill:#fff}
+#flip[disabled]{opacity:.35}
+
+/* ---------- permission gate ---------- */
+#gate{
+  position:absolute;inset:0;z-index:10;background:#000;
+  display:none;flex-direction:column;align-items:center;justify-content:center;
+  gap:16px;padding:34px;text-align:center;
+}
+#gate.show{display:flex}
+#gate h1{margin:0;font-size:20px;font-weight:600;letter-spacing:.01em}
+#gate p{margin:0;max-width:34ch;font-size:14px;font-weight:400;line-height:1.45;color:#aeaeb2}
+#gateBtn{
+  margin-top:6px;background:var(--ios-yellow);color:#000;font-weight:600;font-size:16px;
+  padding:12px 26px;border-radius:24px;
+}
+
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.01ms !important;transition-duration:.01ms !important}
+}
+@media (min-width:900px) and (orientation:landscape){
+  #stage{margin:0 auto;width:min(100%,calc((100vh - 220px) * 1.6))}
+}
+</style>
+</head>
+<body data-mode="photo" data-rec="0" data-source="none">
+<div id="app">
+
+  <div id="topBar">
+    <div id="recPill"><span id="recDot"></span><span id="timer">00:00</span></div>
+  </div>
+
+  <div id="guideBar">
+    <span class="lbl">Guide</span>
+    <input id="opacity" type="range" min="0" max="100" step="1" value="50" aria-label="Guide opacity">
+    <span id="pct">50%</span>
+  </div>
+
+  <div id="stage">
+    <video id="preview" class="off" playsinline autoplay muted></video>
+    <div id="overlayLayer"><img id="overlayImg" alt=""></div>
+    <div id="audioView">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V22h2v-4.08A7 7 0 0 0 19 11z"/></svg>
+      <div id="bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <p>Audio only. The camera is not available.</p>
+    </div>
+    <div id="shutterFx"></div>
+    <div id="toast"></div>
+  </div>
+
+  <div id="bottomBar">
+    <div id="modes">
+      <button class="mode active" id="modePhoto" data-mode="photo" type="button">Photo</button>
+      <button class="mode" id="modeVideo" data-mode="video" type="button">Video</button>
+    </div>
+    <div id="controls">
+      <button id="guideBtn" type="button" title="Add a guide photo" aria-label="Add a guide photo">
+        <svg class="ic-add" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+        <svg class="ic-close" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+      <input id="guideFile" type="file" accept="image/*" hidden>
+      <button id="shutter" type="button" aria-label="Take a photo"><span id="core"></span></button>
+      <button id="flip" type="button" aria-label="Change the camera">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5V2.5L8.2 6.3 12 10V7a5 5 0 1 1-5 5H5a7 7 0 1 0 7-7z"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div id="gate" class="show">
+    <h1 id="gateTitle">Camera</h1>
+    <p id="gateText">This app needs the camera or the microphone. Touch the button and give permission.</p>
+    <button id="gateBtn" type="button">Start the camera</button>
+  </div>
+
+</div>
+
+<script>
+(function(){
+'use strict';
+
+var VERSION = '1.1.0';
+
+var el = {
+  body: document.body,
+  preview: document.getElementById('preview'),
+  stage: document.getElementById('stage'),
+  fx: document.getElementById('shutterFx'),
+  toast: document.getElementById('toast'),
+  timer: document.getElementById('timer'),
+  shutter: document.getElementById('shutter'),
+  guideBtn: document.getElementById('guideBtn'),
+  guideFile: document.getElementById('guideFile'),
+  layer: document.getElementById('overlayLayer'),
+  oimg: document.getElementById('overlayImg'),
+  slider: document.getElementById('opacity'),
+  pct: document.getElementById('pct'),
+  flip: document.getElementById('flip'),
+  modePhoto: document.getElementById('modePhoto'),
+  modeVideo: document.getElementById('modeVideo'),
+  bars: Array.prototype.slice.call(document.querySelectorAll('#bars i')),
+  gate: document.getElementById('gate'),
+  gateTitle: document.getElementById('gateTitle'),
+  gateText: document.getElementById('gateText'),
+  gateBtn: document.getElementById('gateBtn')
+};
+
+var S = {
+  mode: 'photo',
+  facing: 'environment',
+  stream: null,
+  hasVideo: false,
+  hasAudio: false,
+  rec: null,
+  chunks: [],
+  recStart: 0,
+  tick: 0,
+  guideUrl: '',
+  busy: false,
+  wake: null,
+  audioCtx: null,
+  analyser: null,
+  meterId: 0,
+  multiCam: true
+};
+
+/* ---------------- helpers ---------------- */
+
+function toast(msg){
+  el.toast.textContent = msg;
+  el.toast.classList.add('show');
+  clearTimeout(toast.id);
+  toast.id = setTimeout(function(){ el.toast.classList.remove('show'); }, 2600);
+}
+
+function stamp(){
+  var d = new Date();
+  function p(n){ return (n < 10 ? '0' : '') + n; }
+  return d.getFullYear() + p(d.getMonth()+1) + p(d.getDate()) + '_' +
+         p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds());
+}
+
+function extFor(mime){
+  var m = (mime || '').toLowerCase();
+  if (m.indexOf('mp4') >= 0) return m.indexOf('audio') === 0 ? 'm4a' : 'mp4';
+  if (m.indexOf('mpeg') >= 0) return 'mp3';
+  if (m.indexOf('aac') >= 0) return 'aac';
+  if (m.indexOf('quicktime') >= 0) return 'mov';
+  if (m.indexOf('ogg') >= 0) return 'ogg';
+  if (m.indexOf('webm') >= 0) return 'webm';
+  if (m.indexOf('jpeg') >= 0) return 'jpg';
+  return 'bin';
+}
+
+function save(blob, name){
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  a.rel = 'noopener';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 60000);
+}
+
+/* ---------------- guide overlay ---------------- */
+
+/* The overlay is an HTML element above the preview. The app captures from the
+   video element and from the camera stream only. Thus the guide photo is never
+   part of a photo file or a video file. */
+
+function openGuide(file){
+  if (!file) return;
+  if (file.type.indexOf('image/') !== 0){ toast('Select a photo file.'); return; }
+  clearGuideUrl();
+  S.guideUrl = URL.createObjectURL(file);
+  el.oimg.onload = fitOverlay;
+  el.oimg.onerror = function(){ toast('The photo did not open.'); closeGuide(); };
+  el.oimg.src = S.guideUrl;
+  el.body.setAttribute('data-overlay','1');
+  el.guideBtn.title = 'Remove the guide photo';
+  el.guideBtn.setAttribute('aria-label','Remove the guide photo');
+  setOpacity(el.slider.value);
+  fitOverlay();
+  toast('Guide photo on. It stays out of the saved files.');
+}
+
+function closeGuide(){
+  clearGuideUrl();
+  el.oimg.removeAttribute('src');
+  el.body.setAttribute('data-overlay','0');
+  el.guideBtn.title = 'Add a guide photo';
+  el.guideBtn.setAttribute('aria-label','Add a guide photo');
+  el.guideFile.value = '';
+}
+
+function clearGuideUrl(){
+  if (S.guideUrl) URL.revokeObjectURL(S.guideUrl);
+  S.guideUrl = '';
+}
+
+function setOpacity(v){
+  el.layer.style.opacity = (v / 100).toString();
+  el.pct.textContent = Math.round(v) + '%';
+}
+
+/* Put the overlay on the visible camera frame, not on the black bars. */
+function fitOverlay(){
+  if (!S.guideUrl) return;
+  var r = el.stage.getBoundingClientRect();
+  var vw = el.preview.videoWidth, vh = el.preview.videoHeight;
+  var w = r.width, h = r.height, x = 0, y = 0;
+  if (vw && vh && r.width && r.height){
+    var k = Math.min(r.width / vw, r.height / vh);
+    w = vw * k; h = vh * k;
+    x = (r.width - w) / 2; y = (r.height - h) / 2;
+  }
+  el.layer.style.width = w + 'px';
+  el.layer.style.height = h + 'px';
+  el.layer.style.transform = 'translate(' + x + 'px,' + y + 'px)';
+}
+
+/* ---------------- camera and microphone ---------------- */
+
+function videoWanted(facing){
+  return { facingMode: { ideal: facing }, width: { ideal: 1920 }, height: { ideal: 1080 } };
+}
+
+function stopStream(){
+  if (!S.stream) return;
+  S.stream.getTracks().forEach(function(t){ t.stop(); });
+  S.stream = null;
+}
+
+function gum(c){ return navigator.mediaDevices.getUserMedia(c); }
+
+function startStream(facing){
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    showGate('Not available', 'This browser does not give access to the camera. Open the page with https or localhost.');
+    return Promise.resolve(false);
+  }
+  stopStream();
+  return gum({ video: videoWanted(facing), audio: true })
+    .catch(function(){ return gum({ video: videoWanted(facing) }); })
+    .catch(function(){ return gum({ audio: true }); })
+    .then(function(stream){ return applyStream(stream, facing); })
+    .catch(function(err){
+      var why = (err && err.name === 'NotAllowedError')
+        ? 'Permission was refused. Give permission to the camera or the microphone, then try again.'
+        : 'No camera and no microphone were found.';
+      showGate('No access', why);
+      return false;
+    });
+}
+
+function applyStream(stream, facing){
+  S.stream = stream;
+  S.facing = facing;
+  S.hasVideo = stream.getVideoTracks().length > 0;
+  S.hasAudio = stream.getAudioTracks().length > 0;
+
+  if (S.hasVideo){
+    el.preview.srcObject = stream;
+    el.preview.classList.remove('off');
+    el.preview.classList.toggle('mirror', facing === 'user');
+    var p = el.preview.play();
+    if (p && p.catch) p.catch(function(){});
+  } else {
+    el.preview.classList.add('off');
+  }
+
+  el.body.setAttribute('data-source', S.hasVideo ? (S.hasAudio ? 'both' : 'video') : 'audio');
+  if (!S.hasVideo) startMeter(stream); else stopMeter();
+
+  hideGate();
+  if (!S.hasVideo) setMode('video');
+  if (!S.hasAudio && S.hasVideo) toast('The microphone is off. Video has no sound.');
+  refreshUI();
+  countCameras();
+  setTimeout(fitOverlay, 120);
+  return true;
+}
+
+function countCameras(){
+  if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+  navigator.mediaDevices.enumerateDevices().then(function(list){
+    var n = list.filter(function(d){ return d.kind === 'videoinput'; }).length;
+    S.multiCam = n > 1;
+    refreshUI();
+  }).catch(function(){});
+}
+
+function flipCamera(){
+  if (!S.hasVideo || S.rec) return;
+  var next = S.facing === 'user' ? 'environment' : 'user';
+  el.flip.disabled = true;
+  startStream(next).then(function(){ el.flip.disabled = false; refreshUI(); });
+}
+
+/* ---------------- audio level meter ---------------- */
+
+function startMeter(stream){
+  stopMeter();
+  var AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return;
+  try {
+    S.audioCtx = new AC();
+    var src = S.audioCtx.createMediaStreamSource(stream);
+    S.analyser = S.audioCtx.createAnalyser();
+    S.analyser.fftSize = 512;
+    src.connect(S.analyser);
+  } catch (e){ return; }
+
+  var buf = new Uint8Array(S.analyser.frequencyBinCount);
+  var step = Math.floor(buf.length / el.bars.length);
+  function draw(){
+    S.analyser.getByteFrequencyData(buf);
+    for (var i = 0; i < el.bars.length; i++){
+      var sum = 0;
+      for (var j = 0; j < step; j++) sum += buf[i * step + j];
+      var v = sum / step / 255;
+      el.bars[i].style.height = Math.max(6, Math.round(v * 62)) + 'px';
+    }
+    S.meterId = requestAnimationFrame(draw);
+  }
+  draw();
+}
+
+function stopMeter(){
+  if (S.meterId) cancelAnimationFrame(S.meterId);
+  S.meterId = 0;
+  if (S.audioCtx && S.audioCtx.close) { try { S.audioCtx.close(); } catch (e){} }
+  S.audioCtx = null;
+  S.analyser = null;
+}
+
+/* ---------------- photo ---------------- */
+
+function takePhoto(){
+  if (!S.hasVideo || S.busy) return;
+  var w = el.preview.videoWidth, h = el.preview.videoHeight;
+  if (!w || !h) { toast('The camera is not ready.'); return; }
+
+  S.busy = true;
+  el.fx.classList.remove('go');
+  void el.fx.offsetWidth;
+  el.fx.classList.add('go');
+
+  var c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  c.getContext('2d').drawImage(el.preview, 0, 0, w, h);
+
+  var name = 'IMG_' + stamp() + '.jpg';
+  c.toBlob(function(blob){
+    if (!blob){ S.busy = false; toast('The photo failed.'); return; }
+    save(blob, name);
+    toast('Saved ' + name);
+    S.busy = false;
+  }, 'image/jpeg', 0.92);
+}
+
+/* ---------------- video and audio recording ---------------- */
+
+function pickMime(withVideo){
+  var list = withVideo
+    ? ['video/mp4;codecs=avc1.42E01E,mp4a.40.2','video/mp4;codecs=h264,aac','video/mp4',
+       'video/webm;codecs=h264,opus','video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm']
+    : ['audio/mpeg','audio/mp4;codecs=mp4a.40.2','audio/mp4','audio/aac','audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus'];
+  if (!window.MediaRecorder) return '';
+  for (var i = 0; i < list.length; i++){
+    if (MediaRecorder.isTypeSupported(list[i])) return list[i];
+  }
+  return '';
+}
+
+function startRec(){
+  if (!S.stream || S.rec) return;
+  if (!window.MediaRecorder){ toast('This browser cannot record.'); return; }
+
+  var mime = pickMime(S.hasVideo);
+  var rec;
+  try {
+    rec = mime ? new MediaRecorder(S.stream, { mimeType: mime }) : new MediaRecorder(S.stream);
+  } catch (e){
+    try { rec = new MediaRecorder(S.stream); } catch (e2){ toast('The recorder did not start.'); return; }
+  }
+
+  S.chunks = [];
+  S.rec = rec;
+  rec.ondataavailable = function(ev){ if (ev.data && ev.data.size) S.chunks.push(ev.data); };
+  rec.onstop = finishRec;
+  rec.onerror = function(){ toast('The recording stopped with an error.'); };
+  rec.start(1000);
+
+  S.recStart = Date.now();
+  el.body.setAttribute('data-rec','1');
+  el.timer.textContent = '00:00';
+  S.tick = setInterval(updateTimer, 250);
+  lockScreen();
+  refreshUI();
+}
+
+function stopRec(){
+  if (!S.rec) return;
+  try { S.rec.stop(); } catch (e){}
+}
+
+function finishRec(){
+  clearInterval(S.tick);
+  var type = (S.rec && S.rec.mimeType) || pickMime(S.hasVideo) || (S.hasVideo ? 'video/mp4' : 'audio/mp4');
+  var blob = new Blob(S.chunks, { type: type });
+  S.chunks = [];
+  S.rec = null;
+  el.body.setAttribute('data-rec','0');
+  unlockScreen();
+  refreshUI();
+
+  if (!blob.size){ toast('The recording was empty.'); return; }
+  var prefix = S.hasVideo ? 'VID_' : 'AUD_';
+  var name = prefix + stamp() + '.' + extFor(type);
+  save(blob, name);
+  toast('Saved ' + name);
+}
+
+function updateTimer(){
+  var s = Math.floor((Date.now() - S.recStart) / 1000);
+  var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), r = s % 60;
+  function p(n){ return (n < 10 ? '0' : '') + n; }
+  el.timer.textContent = (h ? p(h) + ':' : '') + p(m) + ':' + p(r);
+}
+
+function lockScreen(){
+  if (!navigator.wakeLock || !navigator.wakeLock.request) return;
+  navigator.wakeLock.request('screen').then(function(w){ S.wake = w; }).catch(function(){});
+}
+function unlockScreen(){
+  if (S.wake && S.wake.release) { try { S.wake.release(); } catch (e){} }
+  S.wake = null;
+}
+
+/* ---------------- interface ---------------- */
+
+function setMode(mode){
+  if (S.rec) return;
+  if (mode === 'photo' && !S.hasVideo) return;
+  S.mode = mode;
+  el.body.setAttribute('data-mode', mode);
+  el.modePhoto.classList.toggle('active', mode === 'photo');
+  el.modeVideo.classList.toggle('active', mode === 'video');
+  refreshUI();
+}
+
+function refreshUI(){
+  var live = S.hasVideo || S.hasAudio;
+  el.modePhoto.disabled = !S.hasVideo;
+  el.modeVideo.disabled = !live;
+  el.shutter.disabled = !live || (S.mode === 'photo' && !S.hasVideo);
+  el.flip.disabled = !S.hasVideo || !!S.rec || !S.multiCam;
+  el.guideBtn.disabled = !S.hasVideo;
+  el.shutter.setAttribute('aria-label',
+    S.mode === 'photo' ? 'Take a photo' : (S.rec ? 'Stop the recording' : 'Start the recording'));
+}
+
+function showGate(title, text){
+  el.gateTitle.textContent = title;
+  el.gateText.textContent = text;
+  el.gate.classList.add('show');
+}
+function hideGate(){ el.gate.classList.remove('show'); }
+
+/* ---------------- events ---------------- */
+
+el.shutter.addEventListener('click', function(){
+  if (S.mode === 'photo') takePhoto();
+  else if (S.rec) stopRec();
+  else startRec();
+});
+
+el.modePhoto.addEventListener('click', function(){ setMode('photo'); });
+el.modeVideo.addEventListener('click', function(){ setMode('video'); });
+el.flip.addEventListener('click', flipCamera);
+
+el.guideBtn.addEventListener('click', function(){
+  if (S.guideUrl) closeGuide();
+  else el.guideFile.click();
+});
+
+el.guideFile.addEventListener('change', function(){
+  openGuide(this.files && this.files[0]);
+});
+
+el.slider.addEventListener('input', function(){ setOpacity(this.value); });
+
+el.preview.addEventListener('loadedmetadata', fitOverlay);
+window.addEventListener('resize', fitOverlay);
+window.addEventListener('orientationchange', function(){ setTimeout(fitOverlay, 250); });
+
+el.gateBtn.addEventListener('click', function(){
+  el.gateBtn.disabled = true;
+  startStream(S.facing).then(function(){ el.gateBtn.disabled = false; });
+});
+
+/* swipe between the modes, as on the stock app */
+(function(){
+  var x0 = null;
+  el.stage.addEventListener('touchstart', function(e){ x0 = e.touches[0].clientX; }, { passive: true });
+  el.stage.addEventListener('touchend', function(e){
+    if (x0 === null) return;
+    var dx = e.changedTouches[0].clientX - x0;
+    x0 = null;
+    if (Math.abs(dx) < 48) return;
+    setMode(dx < 0 ? 'video' : 'photo');
+  }, { passive: true });
+})();
+
+document.addEventListener('keydown', function(e){
+  if (e.key === ' ' || e.key === 'Enter'){
+    if (document.activeElement && document.activeElement.tagName === 'BUTTON') return;
+    e.preventDefault();
+    el.shutter.click();
+  }
+});
+
+document.addEventListener('visibilitychange', function(){
+  if (document.hidden && S.rec) stopRec();
+});
+
+window.addEventListener('pagehide', function(){ stopRec(); stopStream(); });
+
+/* ---------------- start ---------------- */
+
+document.title = 'Camera ' + VERSION;
+startStream(S.facing);
+
+})();
+</script>
+</body>
+</html>
