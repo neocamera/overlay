@@ -1,4 +1,4 @@
-<!-- neocamera v1.3.1 -->
+<!-- neocamera v1.5.0 -->
 <!doctype html>
 <html lang="en">
 <head>
@@ -32,12 +32,9 @@ button:focus-visible{outline:2px solid var(--ios-yellow);outline-offset:3px;bord
 }
 
 /* ---------- top chrome ---------- */
-#topBar{
-  flex:0 0 auto;height:46px;display:grid;grid-template-columns:1fr auto 1fr;
-  align-items:center;padding:0 18px;
-}
+#topBar{flex:0 0 auto;height:46px;display:flex;align-items:center;justify-content:center}
 #recPill{
-  grid-column:2;display:none;align-items:center;gap:7px;
+  display:none;align-items:center;gap:7px;
   background:rgba(0,0,0,.55);border-radius:16px;padding:5px 12px;
   font-size:15px;font-variant-numeric:tabular-nums;
 }
@@ -45,14 +42,6 @@ button:focus-visible{outline:2px solid var(--ios-yellow);outline-offset:3px;bord
 body[data-rec="1"] #recPill{display:flex}
 body[data-rec="1"] #recDot{animation:blink 1s steps(1,end) infinite}
 @keyframes blink{50%{opacity:.15}}
-
-#ratioBtn{
-  grid-column:3;justify-self:end;background:rgba(255,255,255,.14);
-  color:var(--ios-yellow);font-size:13px;font-weight:600;letter-spacing:.02em;
-  padding:6px 12px;border-radius:14px;
-}
-#ratioBtn[disabled]{opacity:.35;color:#fff}
-body[data-mode="video"] #ratioBtn,body[data-rec="1"] #ratioBtn,body[data-source="audio"] #ratioBtn{visibility:hidden}
 
 /* ---------- guide opacity bar ---------- */
 #guideBar{
@@ -132,8 +121,11 @@ body[data-source="audio"] #audioView{display:flex}
 
 /* ---------- bottom chrome ---------- */
 #bottomBar{flex:0 0 auto;background:var(--chrome);padding-bottom:6px}
-#ratioBar{display:none;flex-wrap:wrap;justify-content:center;gap:6px;padding:8px 10px 2px}
-#ratioBar.show{display:flex}
+#ratioBar{
+  flex:0 0 auto;display:flex;flex-wrap:wrap;justify-content:center;gap:6px;
+  padding:6px 14px 10px;background:var(--chrome);
+}
+body[data-source="audio"] #ratioBar,body[data-source="none"] #ratioBar{display:none}
 #orientBtn{
   font-size:12px;font-weight:600;color:var(--ios-yellow);
   padding:6px 13px;border-radius:13px;background:rgba(255,255,255,.12);
@@ -144,6 +136,7 @@ body[data-source="audio"] #audioView{display:flex}
   padding:6px 13px;border-radius:13px;background:rgba(255,255,255,.12);
 }
 .ratio.active{background:var(--ios-yellow);color:#000}
+.ratio[disabled],#orientBtn[disabled]{opacity:.35}
 
 #modes{display:flex;align-items:center;justify-content:center;gap:30px;height:38px}
 .mode{
@@ -182,8 +175,8 @@ body[data-overlay="1"] #guideBtn .ic-close{display:block}
 body[data-mode="video"] #core{background:var(--ios-red)}
 body[data-rec="1"] #core{width:30px;height:30px;border-radius:8px;background:var(--ios-red)}
 
-#flip{width:46px;height:46px;border-radius:50%;justify-self:end;background:var(--glass);display:grid;place-items:center}
-#flip svg{width:24px;height:24px;fill:#fff}
+#flip{width:50.6px;height:50.6px;border-radius:50%;justify-self:end;background:var(--glass);display:grid;place-items:center}
+#flip svg{width:26.4px;height:26.4px;fill:#fff}
 #flip[disabled]{opacity:.35}
 
 /* ---------- permission gate ---------- */
@@ -207,7 +200,15 @@ body[data-rec="1"] #core{width:30px;height:30px;border-radius:8px;background:var
 
   <div id="topBar">
     <div id="recPill"><span id="recDot"></span><span id="timer">00:00</span></div>
-    <button id="ratioBtn" type="button" aria-label="Aspect ratio">4:3</button>
+  </div>
+
+  <div id="ratioBar">
+    <button id="orientBtn" type="button" aria-label="Orientation">Vertical</button>
+    <span class="sep"></span>
+    <button class="ratio" data-r="1" data-h="1:1" data-v="1:1" type="button">1:1</button>
+    <button class="ratio active" data-r="1.3333" data-h="4:3" data-v="3:4" type="button">4:3</button>
+    <button class="ratio" data-r="1.5" data-h="3:2" data-v="2:3" type="button">3:2</button>
+    <button class="ratio" data-r="1.7778" data-h="16:9" data-v="9:16" type="button">16:9</button>
   </div>
 
   <div id="guideBar">
@@ -239,15 +240,6 @@ body[data-rec="1"] #core{width:30px;height:30px;border-radius:8px;background:var
   </div>
 
   <div id="bottomBar">
-    <div id="ratioBar">
-      <button id="orientBtn" type="button" aria-label="Orientation">Vertical</button>
-      <span class="sep"></span>
-      <button class="ratio" data-r="1" data-h="1:1" data-v="1:1" type="button">1:1</button>
-      <button class="ratio active" data-r="1.3333" data-h="4:3" data-v="3:4" type="button">4:3</button>
-      <button class="ratio" data-r="1.5" data-h="3:2" data-v="2:3" type="button">3:2</button>
-      <button class="ratio" data-r="1.7778" data-h="16:9" data-v="9:16" type="button">16:9</button>
-      <button class="ratio" data-r="0" data-h="Full" data-v="Full" type="button">Full</button>
-    </div>
     <div id="modes">
       <button class="mode active" id="modePhoto" data-mode="photo" type="button">Photo</button>
       <button class="mode" id="modeVideo" data-mode="video" type="button">Video</button>
@@ -278,7 +270,7 @@ body[data-rec="1"] #core{width:30px;height:30px;border-radius:8px;background:var
 (function(){
 'use strict';
 
-var VERSION = '1.3.1';
+var VERSION = '1.5.0';
 var GUIDE_MAX = 1600;   /* largest side of the prepared guide photo, in pixels */
 
 var el = {
@@ -296,7 +288,6 @@ var el = {
   oimg: document.getElementById('overlayImg'),
   slider: document.getElementById('opacity'),
   pct: document.getElementById('pct'),
-  ratioBtn: document.getElementById('ratioBtn'),
   ratioBar: document.getElementById('ratioBar'),
   orientBtn: document.getElementById('orientBtn'),
   ratios: Array.prototype.slice.call(document.querySelectorAll('.ratio')),
@@ -334,6 +325,8 @@ var S = {
   expoCap: null,
   expoVal: 0,
   locked: false,
+  drawId: 0,
+  recTrack: null,
   focusActive: false,
   focusTimers: []
 };
@@ -390,11 +383,12 @@ function isPortrait(){
   return r.height >= r.width;
 }
 
-/* Full uses the true shape of the camera image. The other options use the
-   selected shape, turned to the selected orientation. */
+/* The selected shape applies to photo mode and to video mode alike, turned to
+   the selected orientation. There is no shape left that shows the raw camera
+   frame; if S.ratio is ever unset, the app falls back to it. */
 function frameAspect(){
   var vw = el.preview.videoWidth, vh = el.preview.videoHeight;
-  if (S.mode === 'video' || !S.ratio){
+  if (!S.ratio){
     if (vw && vh) return vw / vh;
     return isPortrait() ? 3 / 4 : 4 / 3;
   }
@@ -425,15 +419,11 @@ function setOrient(){
 
 function updateRatioLabels(){
   var p = isPortrait();
-  var active = '';
   el.ratios.forEach(function(b){
     b.textContent = p ? b.dataset.v : b.dataset.h;
-    var on = parseFloat(b.dataset.r) === S.ratio;
-    b.classList.toggle('active', on);
-    if (on) active = b.textContent;
+    b.classList.toggle('active', parseFloat(b.dataset.r) === S.ratio);
   });
   el.orientBtn.textContent = p ? 'Vertical' : 'Horizontal';
-  el.ratioBtn.textContent = active || 'Full';
 }
 
 /* ---------------- camera and microphone ---------------- */
@@ -834,16 +824,62 @@ function pickMime(withVideo){
   return '';
 }
 
+function ratiosClose(a, b){ return Math.abs(a - b) < 0.02; }
+
+/* MediaRecorder normally records the raw camera stream, and the raw stream is
+   never cropped. To make a chosen shape reach the saved video, the app draws
+   the same cropped picture that is on the screen onto a canvas, and records
+   the canvas instead. If the chosen shape is already close to the true shape
+   of the camera, the app skips this and records the camera directly, for the
+   best quality and the smallest use of the processor. */
+function buildRecordStream(){
+  if (!S.hasVideo) return S.stream;
+  var vw = el.preview.videoWidth, vh = el.preview.videoHeight;
+  if (!vw || !vh) return S.stream;
+
+  var native = vw / vh;
+  var target = frameAspect();
+  if (ratiosClose(native, target)) return S.stream;
+
+  var sw = vw, sh = vw / target;
+  if (sh > vh){ sh = vh; sw = vh * target; }
+  var sx = (vw - sw) / 2, sy = (vh - sh) / 2;
+
+  var canvas = document.createElement('canvas');
+  canvas.width = Math.round(sw);
+  canvas.height = Math.round(sh);
+  var ctx = canvas.getContext('2d', { alpha: false });
+
+  (function draw(){
+    ctx.drawImage(el.preview, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+    S.drawId = requestAnimationFrame(draw);
+  })();
+
+  var vTrack = canvas.captureStream(30).getVideoTracks()[0];
+  S.recTrack = vTrack;
+  var tracks = [vTrack];
+  if (S.hasAudio) tracks = tracks.concat(S.stream.getAudioTracks());
+  return new MediaStream(tracks);
+}
+
+function stopDraw(){
+  if (S.drawId) cancelAnimationFrame(S.drawId);
+  S.drawId = 0;
+  if (S.recTrack){ try { S.recTrack.stop(); } catch (e){} }
+  S.recTrack = null;
+}
+
 function startRec(){
   if (!S.stream || S.rec) return;
   if (!window.MediaRecorder){ toast('This browser cannot record.'); return; }
 
+  var recStream = buildRecordStream();
   var mime = pickMime(S.hasVideo);
   var rec;
   try {
-    rec = mime ? new MediaRecorder(S.stream, { mimeType: mime }) : new MediaRecorder(S.stream);
+    rec = mime ? new MediaRecorder(recStream, { mimeType: mime }) : new MediaRecorder(recStream);
   } catch (e){
-    try { rec = new MediaRecorder(S.stream); } catch (e2){ toast('The recorder did not start.'); return; }
+    try { rec = new MediaRecorder(recStream); } catch (e2){ stopDraw(); toast('The recorder did not start.'); return; }
   }
 
   S.chunks = [];
@@ -868,6 +904,7 @@ function stopRec(){
 
 function finishRec(){
   clearInterval(S.tick);
+  stopDraw();
   var type = (S.rec && S.rec.mimeType) || pickMime(S.hasVideo) || (S.hasVideo ? 'video/mp4' : 'audio/mp4');
   var blob = new Blob(S.chunks, { type: type });
   S.chunks = [];
@@ -907,7 +944,6 @@ function setMode(mode){
   el.body.setAttribute('data-mode', mode);
   el.modePhoto.classList.toggle('active', mode === 'photo');
   el.modeVideo.classList.toggle('active', mode === 'video');
-  if (mode === 'video') el.ratioBar.classList.remove('show');
   layoutFrame();
   refreshUI();
 }
@@ -919,7 +955,8 @@ function refreshUI(){
   el.shutter.disabled = !live || (S.mode === 'photo' && !S.hasVideo);
   el.flip.disabled = !S.hasVideo || !!S.rec || !S.multiCam;
   el.guideBtn.disabled = !S.hasVideo;
-  el.ratioBtn.disabled = !S.hasVideo;
+  el.orientBtn.disabled = !!S.rec;
+  el.ratios.forEach(function(b){ b.disabled = !!S.rec; });
   el.shutter.setAttribute('aria-label',
     S.mode === 'photo' ? 'Take a photo' : (S.rec ? 'Stop the recording' : 'Start the recording'));
 }
@@ -943,7 +980,6 @@ el.modePhoto.addEventListener('click', function(){ setMode('photo'); });
 el.modeVideo.addEventListener('click', function(){ setMode('video'); });
 el.flip.addEventListener('click', flipCamera);
 
-el.ratioBtn.addEventListener('click', function(){ el.ratioBar.classList.toggle('show'); });
 el.ratios.forEach(function(b){
   b.addEventListener('click', function(){ setRatio(parseFloat(b.dataset.r)); });
 });
@@ -979,7 +1015,7 @@ document.addEventListener('keydown', function(e){
 });
 
 document.addEventListener('visibilitychange', function(){ if (document.hidden && S.rec) stopRec(); });
-window.addEventListener('pagehide', function(){ stopRec(); stopStream(); clearGuideUrl(); });
+window.addEventListener('pagehide', function(){ stopRec(); stopDraw(); stopStream(); clearGuideUrl(); });
 
 /* ---------------- start ---------------- */
 
