@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#000000">
 <meta name="color-scheme" content="dark">
-<title>Camera</title>
+<title>neocamera</title>
 <style>
 :root{
   --ios-yellow:#ffd60a;
@@ -77,7 +77,7 @@ body[data-overlay="1"] #guideBar{display:flex}
 
 /* ---------- viewfinder ---------- */
 #stage{flex:1 1 auto;position:relative;overflow:hidden;background:#000;display:flex;align-items:center;justify-content:center}
-#frame{position:relative;overflow:hidden;background:#000;touch-action:none;contain:paint}
+#frame{flex:0 0 auto;max-width:100%;max-height:100%;position:relative;overflow:hidden;background:#000;touch-action:none;contain:paint}
 body[data-source="audio"] #frame{display:none}
 #preview{width:100%;height:100%;object-fit:cover;display:block;background:#000}
 #preview.mirror{transform:scaleX(-1)}
@@ -131,8 +131,13 @@ body[data-source="audio"] #audioView{display:flex}
 
 /* ---------- bottom chrome ---------- */
 #bottomBar{flex:0 0 auto;background:var(--chrome);padding-bottom:6px}
-#ratioBar{display:none;justify-content:center;gap:6px;padding:8px 0 2px}
+#ratioBar{display:none;flex-wrap:wrap;justify-content:center;gap:6px;padding:8px 10px 2px}
 #ratioBar.show{display:flex}
+#orientBtn{
+  font-size:12px;font-weight:600;color:var(--ios-yellow);
+  padding:6px 13px;border-radius:13px;background:rgba(255,255,255,.12);
+}
+#ratioBar .sep{width:1px;height:20px;background:rgba(255,255,255,.2);align-self:center}
 .ratio{
   font-size:12px;font-weight:600;letter-spacing:.03em;color:#fff;
   padding:6px 13px;border-radius:13px;background:rgba(255,255,255,.12);
@@ -234,11 +239,13 @@ body[data-rec="1"] #core{width:30px;height:30px;border-radius:8px;background:var
 
   <div id="bottomBar">
     <div id="ratioBar">
-      <button class="ratio" data-r="1" type="button">1:1</button>
-      <button class="ratio active" data-r="1.3333" type="button">4:3</button>
-      <button class="ratio" data-r="1.5" type="button">3:2</button>
-      <button class="ratio" data-r="1.7778" type="button">16:9</button>
-      <button class="ratio" data-r="0" type="button">Full</button>
+      <button id="orientBtn" type="button" aria-label="Orientation">Vertical</button>
+      <span class="sep"></span>
+      <button class="ratio" data-r="1" data-h="1:1" data-v="1:1" type="button">1:1</button>
+      <button class="ratio active" data-r="1.3333" data-h="4:3" data-v="3:4" type="button">4:3</button>
+      <button class="ratio" data-r="1.5" data-h="3:2" data-v="2:3" type="button">3:2</button>
+      <button class="ratio" data-r="1.7778" data-h="16:9" data-v="9:16" type="button">16:9</button>
+      <button class="ratio" data-r="0" data-h="Full" data-v="Full" type="button">Full</button>
     </div>
     <div id="modes">
       <button class="mode active" id="modePhoto" data-mode="photo" type="button">Photo</button>
@@ -259,7 +266,7 @@ body[data-rec="1"] #core{width:30px;height:30px;border-radius:8px;background:var
   </div>
 
   <div id="gate" class="show">
-    <h1 id="gateTitle">Camera</h1>
+    <h1 id="gateTitle">neocamera</h1>
     <p id="gateText">This app needs the camera or the microphone. Touch the button and give permission.</p>
     <button id="gateBtn" type="button">Start the camera</button>
   </div>
@@ -270,7 +277,7 @@ body[data-rec="1"] #core{width:30px;height:30px;border-radius:8px;background:var
 (function(){
 'use strict';
 
-var VERSION = '1.2.0';
+var VERSION = '1.3.0';
 var GUIDE_MAX = 1600;   /* largest side of the prepared guide photo, in pixels */
 
 var el = {
@@ -290,6 +297,7 @@ var el = {
   pct: document.getElementById('pct'),
   ratioBtn: document.getElementById('ratioBtn'),
   ratioBar: document.getElementById('ratioBar'),
+  orientBtn: document.getElementById('orientBtn'),
   ratios: Array.prototype.slice.call(document.querySelectorAll('.ratio')),
   focusBox: document.getElementById('focusBox'),
   expoSun: document.getElementById('expoSun'),
@@ -307,6 +315,7 @@ var S = {
   mode: 'photo',
   facing: 'environment',
   ratio: 1.3333,
+  orient: 'auto',   /* auto, v, or h */
   stream: null,
   hasVideo: false,
   hasAudio: false,
@@ -373,12 +382,22 @@ function videoTrack(){
 
 /* The frame is the visible picture area. The preview fills it and the app cuts
    the sides. A capture uses the same cut, thus the file agrees with the screen. */
+function isPortrait(){
+  if (S.orient === 'v') return true;
+  if (S.orient === 'h') return false;
+  var r = el.stage.getBoundingClientRect();
+  return r.height >= r.width;
+}
+
+/* Full uses the true shape of the camera image. The other options use the
+   selected shape, turned to the selected orientation. */
 function frameAspect(){
   var vw = el.preview.videoWidth, vh = el.preview.videoHeight;
-  var natural = (vw && vh) ? vw / vh : 3 / 4;
-  if (S.mode === 'video' || !S.ratio) return natural;
-  var portrait = (vw && vh) ? (vh > vw) : (el.stage.clientHeight > el.stage.clientWidth);
-  return portrait ? 1 / S.ratio : S.ratio;
+  if (S.mode === 'video' || !S.ratio){
+    if (vw && vh) return vw / vh;
+    return isPortrait() ? 3 / 4 : 4 / 3;
+  }
+  return isPortrait() ? 1 / S.ratio : S.ratio;
 }
 
 function layoutFrame(){
@@ -393,17 +412,27 @@ function layoutFrame(){
 
 function setRatio(v){
   S.ratio = v;
-  el.ratios.forEach(function(b){ b.classList.toggle('active', parseFloat(b.dataset.r) === v); });
-  el.ratioBtn.textContent = v ? labelFor(v) : 'Full';
+  updateRatioLabels();
   layoutFrame();
 }
 
-function labelFor(v){
-  if (v === 1) return '1:1';
-  if (Math.abs(v - 1.3333) < 0.01) return '4:3';
-  if (Math.abs(v - 1.5) < 0.01) return '3:2';
-  if (Math.abs(v - 1.7778) < 0.01) return '16:9';
-  return 'Full';
+function setOrient(){
+  S.orient = isPortrait() ? 'h' : 'v';
+  updateRatioLabels();
+  layoutFrame();
+}
+
+function updateRatioLabels(){
+  var p = isPortrait();
+  var active = '';
+  el.ratios.forEach(function(b){
+    b.textContent = p ? b.dataset.v : b.dataset.h;
+    var on = parseFloat(b.dataset.r) === S.ratio;
+    b.classList.toggle('active', on);
+    if (on) active = b.textContent;
+  });
+  el.orientBtn.textContent = p ? 'Vertical' : 'Horizontal';
+  el.ratioBtn.textContent = active || 'Full';
 }
 
 /* ---------------- camera and microphone ---------------- */
@@ -917,6 +946,7 @@ el.ratioBtn.addEventListener('click', function(){ el.ratioBar.classList.toggle('
 el.ratios.forEach(function(b){
   b.addEventListener('click', function(){ setRatio(parseFloat(b.dataset.r)); });
 });
+el.orientBtn.addEventListener('click', setOrient);
 
 el.guideBtn.addEventListener('click', function(){
   if (el.guideBtn.classList.contains('busy')) return;
@@ -932,8 +962,12 @@ el.gateBtn.addEventListener('click', function(){
 });
 
 el.preview.addEventListener('loadedmetadata', layoutFrame);
-window.addEventListener('resize', layoutFrame);
-window.addEventListener('orientationchange', function(){ setTimeout(layoutFrame, 260); });
+el.preview.addEventListener('resize', layoutFrame);
+el.preview.addEventListener('playing', layoutFrame);
+window.addEventListener('resize', relayout);
+window.addEventListener('orientationchange', function(){ setTimeout(relayout, 260); });
+
+function relayout(){ updateRatioLabels(); layoutFrame(); }
 
 document.addEventListener('keydown', function(e){
   if (e.key === ' ' || e.key === 'Enter'){
@@ -948,9 +982,8 @@ window.addEventListener('pagehide', function(){ stopRec(); stopStream(); clearGu
 
 /* ---------------- start ---------------- */
 
-document.title = 'Camera ' + VERSION;
+document.title = 'neocamera ' + VERSION;
 setRatio(S.ratio);
-layoutFrame();
 startStream(S.facing);
 
 })();
